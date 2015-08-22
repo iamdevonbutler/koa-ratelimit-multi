@@ -17,7 +17,7 @@
 ## Installation
 
 ```js
-$ npm install koa-ratelimit
+$ npm install koa-ratelimit-mulit
 ```
 
 ## Example
