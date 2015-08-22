@@ -12,7 +12,7 @@
 [node-image]: https://img.shields.io/badge/node.js-%3E=_0.11-red.svg?style=flat-square
 [node-url]: http://nodejs.org/download/
 
- Rate limiter middleware for koa.
+ Rate limiter middleware for koa - forked to allow multiple limits on a per path basis.
 
 ## Installation
 
@@ -30,14 +30,41 @@ var app = koa();
 
 // apply rate limit
 
-app.use(ratelimit({
-  db: redis.createClient(),
-  duration: 60000,
-  max: 100,
-  id: function (context) {
-    return context.ip;
+app.use(ratelimit([
+  {
+    *match property not set - will match all routes*
+    db: redis.createClient(),
+    duration: 60000,
+    max: 100,
+    id: function (context) {
+      return context.ip;
+    }
+  },
+  {
+    **match property set - will match listed routes**
+    **matchAfter property set - will all paths after listed routes**
+    match: ['/users'],
+    *will match '/users/*'*
+    matchAfter: true
+    db: redis.createClient(),
+    duration: 1000,
+    max: 100,
+    id: function (context) {
+      return context.ip;
+    }
+  },
+  {
+    match: ['/skip'],
+    *wont limit this route*
+    skip: true,
+    db: redis.createClient(),
+    duration: 60000,
+    max: 100,
+    id: function (context) {
+      return context.ip;
+    }
   }
-}));
+]));
 
 // response middleware
 
@@ -52,9 +79,12 @@ console.log('listening on port 3000');
 ## Options
 
  - `db` redis connection instance
- - `max` max requests within `duration` [2500]
- - `duration` of limit in milliseconds [3600000]
- - `id` id to compare requests [ip]
+ - `max` {Number} max requests within `duration` [2500]
+ - `duration` {Number} of limit in milliseconds [3600000]
+ - `id` {Function} id to compare requests [ip]
+ - `match` {Array} array of Strings to match URL [match all routes]
+ - `matchAfter` {Boolean} if path matches the begining of the URL, match everything after [false]
+ - `skip` {Boolean} if path matches, and skip === true, don't ratelimit [false]
 
 ## Responses
 

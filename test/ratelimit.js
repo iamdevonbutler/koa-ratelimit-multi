@@ -19,6 +19,71 @@ describe('ratelimit middleware', function() {
     done();
   });
 
+
+
+  describe('multiple values', function() {
+    var guard;
+    var app;
+
+    beforeEach(function(done) {
+      app = koa();
+
+      app.use(ratelimit([
+        {
+          duration: rateLimitDuration,
+          db: db,
+          max: 1000,
+          id: function(ctx) {
+            return 'api:'+ctx.ip;
+          }
+        },
+        {
+          match: ['/users', '/user'],
+          duration: rateLimitDuration,
+          db: db,
+          max: 10
+        },
+        {
+          match: ['/matchafter'],
+          duration: rateLimitDuration,
+          db: db,
+          max: 10,
+          matchAfter: true
+        },
+        {
+          match: ['/skip'],
+          duration: rateLimitDuration,
+          db: db,
+          max: 10,
+          skip: true
+        }
+      ]));
+      done();
+    });
+
+    it('Should limit a matching path', function(done) {
+      request(app.listen())
+        .get('/users')
+        .expect('X-RateLimit-Remaining', 9)
+        .end(done);
+    });
+
+    it('Should limit when matchAfter is true', function(done) {
+      request(app.listen())
+        .get('/matchafter/after')
+        .expect('X-RateLimit-Remaining', 8)
+        .end(done);
+    });
+
+    it('Should limit all routes when path is not set', function(done) {
+      request(app.listen())
+        .get('/eggs')
+        .expect('X-RateLimit-Remaining', 999)
+        .end(done);
+    });
+
+  });
+
   describe('limit', function() {
     var guard;
     var app;
@@ -30,11 +95,11 @@ describe('ratelimit middleware', function() {
     beforeEach(function(done) {
       app = koa();
 
-      app.use(ratelimit({
+      app.use(ratelimit([{
         duration: rateLimitDuration,
         db: db,
         max: 1
-      }));
+      }]));
 
       app.use(function* (next) {
         guard++;
@@ -42,7 +107,6 @@ describe('ratelimit middleware', function() {
       });
 
       guard = 0;
-
       setTimeout(function() {
         request(app.listen())
           .get('/')
@@ -75,13 +139,13 @@ describe('ratelimit middleware', function() {
     it('should allow specifying a custom `id` function', function (done) {
       var app = koa();
 
-      app.use(ratelimit({
+      app.use(ratelimit([{
         db: db,
         max: 1,
         id: function (ctx) {
           return ctx.request.header.foo;
         }
-      }));
+      }]));
 
       request(app.listen())
         .get('/')
@@ -95,13 +159,13 @@ describe('ratelimit middleware', function() {
     it('should not limit if `id` returns `false`', function (done) {
       var app = koa();
 
-      app.use(ratelimit({
+      app.use(ratelimit([{
         db: db,
         id: function (ctx) {
           return false;
         },
         max: 5
-      }));
+      }]));
 
       request(app.listen())
         .get('/')
@@ -114,13 +178,13 @@ describe('ratelimit middleware', function() {
     it('should limit using the `id` value', function (done) {
       var app = koa();
 
-      app.use(ratelimit({
+      app.use(ratelimit([{
         db: db,
         max: 1,
         id: function (ctx) {
           return ctx.request.header.foo;
         }
-      }));
+      }]));
 
       app.use(function* (next) {
         this.body = this.request.header.foo;

@@ -1,3 +1,4 @@
+'use strict';
 
 /**
  * Module dependencies.
@@ -7,6 +8,7 @@ var debug = require('debug')('koa-ratelimit');
 var Limiter = require('ratelimiter');
 var ms = require('ms');
 var thenify = require('thenify');
+var _ = require('lodash');
 
 /**
  * Expose `ratelimit()`.
@@ -17,28 +19,34 @@ module.exports = ratelimit;
 /**
  * Initialize ratelimit middleware with the given `opts`:
  *
- * - `duration` limit duration in milliseconds [1 hour]
- * - `max` max requests per `id` [2500]
- * - `db` database connection
- * - `id` id to compare requests [ip]
+ * - `duration` {Number} limit duration in milliseconds [1 hour]
+ * - `max` {Number}  max requests per `id` [2500]
+ * - `db` {connection} database connection
+ * - `id` {Function} id to compare requests [ip]
+ * - `skip` {Boolean} if path matches, and skip === true, don't ratelimit [false]
+ * - `match` {Array} array of Strings to match URL [*]
+ * - `matchAfter` {Boolean} if path matches the begining of the URL,
+ *    match everything after [false]
  *
- * @param {Object} opts
+ * @param {Array of Object(s)} opts
  * @return {Function}
  * @api public
  */
 
 function ratelimit(opts) {
-  opts = opts || {};
+  opts = opts || [];
 
   return function *(next){
-    var id = opts.id ? opts.id(this) : this.ip;
+    var id, opt;
+    opt = getCurrentOpt(opts, this.request.url);
 
-    if (false === id) return yield* next;
+    opt.id = opt.id ? opt.id(this) : this.ip;
+    if (!opt.id || opt.skip) return yield* next;
+
+    var limiter  = new Limiter(opt);
 
     // initialize limiter
-    var limiter = new Limiter({ id: id, __proto__: opts });
     limiter.get = thenify(limiter.get);
-
     // check limit
     var limit = yield limiter.get();
 
@@ -60,3 +68,30 @@ function ratelimit(opts) {
     this.body = 'Rate limit exceeded, retry in ' + ms(delta, { long: true });
   }
 }
+
+function getCurrentOpt(opts, currentUrl) {
+  var currentOpt, optMatch, len = 0;
+  opts.forEach(function(opt) {
+    // Normalize input.
+    opt.match = opt.match || [];
+    // If `match` is empty -> match all routes.
+    if (!opt.match.length && !currentOpt) {
+      currentOpt = opt;
+    }
+    else {
+      opt.match.forEach(function(path) {
+        // If path === `/api/login` & matchAfter === true -> will match `/api/login/*``
+        if (!optMatch && opt.matchAfter && ~currentUrl.indexOf(path) && path.length > len) {
+          currentOpt =  opt;
+          optMatch = true;
+          len = path.length;
+        }
+        if (!optMatch && !opt.matchAfter && currentUrl === path) {
+          currentOpt = opt;
+          optMatch = true;
+        }
+      });
+    }
+  });
+  return _.clone(currentOpt) || {};
+};
