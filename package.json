@@ -1,5 +1,5 @@
 {
-  "name": "koa-ratelimit",
+  "name": "koa-ratelimit-multi",
   "description": "Rate limiter middleware for koa",
   "repository": "iamdevonbutler/koa-ratelimit-multi",
   "version": "0.1.0",

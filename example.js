@@ -6,11 +6,12 @@ var app = koa();
 
 // apply rate limit
 
-app.use(ratelimit({
+app.use(ratelimit([{
+  match: ['/user'],
   db: redis.createClient(),
   duration: 60000,
   max: 100
-}));
+}]));
 
 // response middleware
 
