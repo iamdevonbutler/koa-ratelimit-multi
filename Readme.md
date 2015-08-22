@@ -37,7 +37,7 @@ app.use(ratelimit([
     duration: 60000,
     max: 100,
     id: function (context) {
-      return context.ip;
+      return 'all:'+context.ip;
     }
   },
   {
@@ -50,7 +50,7 @@ app.use(ratelimit([
     duration: 1000,
     max: 100,
     id: function (context) {
-      return context.ip;
+      return 'auth'+context.ip;
     }
   },
   {
