@@ -32,7 +32,7 @@ var app = koa();
 
 app.use(ratelimit([
   {
-    *match property not set - will match all routes*
+    //match property not set - will match all routes
     db: redis.createClient(),
     duration: 60000,
     max: 100,
@@ -41,8 +41,8 @@ app.use(ratelimit([
     }
   },
   {
-    **match property set - will match listed routes**
-    **matchAfter property set - will all paths after listed routes**
+    //match property set - will match listed routes
+    //matchAfter property set - will all paths after listed routes
     match: ['/users'],
     *will match '/users/*'*
     matchAfter: true
