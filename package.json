@@ -2,7 +2,7 @@
   "name": "koa-ratelimit-multi",
   "description": "Rate limiter middleware for koa",
   "repository": "iamdevonbutler/koa-ratelimit-multi",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "keywords": [
     "koa",
     "middleware",
