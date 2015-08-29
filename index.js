@@ -37,7 +37,7 @@ function ratelimit(opts) {
   opts = opts || [];
 
   return function *(next){
-    var id, opt;
+    var opt;
     opt = getCurrentOpt(opts, this.request.url);
 
     opt.id = opt.id ? opt.id(this) : this.ip;
@@ -58,7 +58,7 @@ function ratelimit(opts) {
     this.set('X-RateLimit-Remaining', remaining);
     this.set('X-RateLimit-Reset', limit.reset);
 
-    debug('remaining %s/%s %s', remaining, limit.total, id);
+    debug('remaining %s/%s %s', remaining, limit.total, opt.id);
     if (limit.remaining) return yield* next;
 
     var delta = (limit.reset * 1000) - Date.now() | 0;
