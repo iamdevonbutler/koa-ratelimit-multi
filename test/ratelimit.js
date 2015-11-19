@@ -30,28 +30,28 @@ describe('ratelimit middleware', function() {
 
       app.use(ratelimit([
         {
+          test: ['*'],
           duration: rateLimitDuration,
           db: db,
           max: 1000,
           id: function(ctx) {
-            return 'api:'+ctx.ip;
+            return 'api'+ctx.ip;
           }
         },
         {
-          match: ['/users', '/user'],
+          test: ['/users', '/user'],
           duration: rateLimitDuration,
           db: db,
           max: 10
         },
         {
-          match: ['/matchafter'],
+          test: ['/wildcard/*'],
           duration: rateLimitDuration,
           db: db,
           max: 10,
-          matchAfter: true
         },
         {
-          match: ['/skip'],
+          test: ['/skip/*'],
           duration: rateLimitDuration,
           db: db,
           max: 10,
@@ -61,21 +61,32 @@ describe('ratelimit middleware', function() {
       done();
     });
 
-    it('Should limit a matching path', function(done) {
+    it('Should limit a matching route', function(done) {
       request(app.listen())
         .get('/users')
         .expect('X-RateLimit-Remaining', 9)
         .end(done);
     });
 
-    it('Should limit when matchAfter is true', function(done) {
+    it('Should limit a wildcard route', function(done) {
       request(app.listen())
-        .get('/matchafter/after')
+        .get('/wildcard/route')
         .expect('X-RateLimit-Remaining', 8)
         .end(done);
     });
-
-    it('Should limit all routes when path is not set', function(done) {
+    it('Should not limit matching routes when skip is `true`', function(done) {
+      request(app.listen())
+        .get('/skip/me')
+        .end(function(error, response){
+          if (error) {
+            return done(error);
+          }
+          var isHeaderPresent = response.header['X-RateLimit-Remaining'] !== undefined;
+          isHeaderPresent.should.not.be.ok;
+          done();
+        });
+    });
+    it('Should limit all paths when a catch all route is given', function(done) {
       request(app.listen())
         .get('/eggs')
         .expect('X-RateLimit-Remaining', 999)
@@ -96,6 +107,7 @@ describe('ratelimit middleware', function() {
       app = koa();
 
       app.use(ratelimit([{
+        test: ['*'],
         duration: rateLimitDuration,
         db: db,
         max: 1
@@ -140,6 +152,7 @@ describe('ratelimit middleware', function() {
       var app = koa();
 
       app.use(ratelimit([{
+        test: ['*'],
         db: db,
         max: 1,
         id: function (ctx) {

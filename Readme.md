@@ -23,7 +23,7 @@ $ npm install koa-ratelimit-mulit
 ## Example
 
 ```js
-var ratelimit = require('koa-ratelimit');
+var ratelimit = require('koa-ratelimit-multi');
 var redis = require('redis');
 var koa = require('koa');
 var app = koa();
@@ -32,20 +32,17 @@ var app = koa();
 
 app.use(ratelimit([
   {
-    // match property not set - will match all routes
+    // Catch all route.
+    test: ['*']
     db: redis.createClient(),
     duration: 60000,
     max: 100,
     id: function (context) {
-      return 'all:'+context.ip;
+      return 'all'+context.ip;
     }
   },
   {
-    // match property set - will match listed routes
-    // matchAfter property set - will all paths after listed routes
-    match: ['/users'],
-    // will match '/users/*'
-    matchAfter: true
+    test: ['/users/*'],
     db: redis.createClient(),
     duration: 1000,
     max: 100,
@@ -54,9 +51,15 @@ app.use(ratelimit([
     }
   },
   {
-    match: ['/skip/this/route'],
     // skip == true, wont limit this route
     skip: true
+    test: ['/skip/this/route'],
+    db: redis.createClient(),
+    duration: 1000,
+    max: 100,
+    id: function (context) {
+      return 'auth'+context.ip;
+    }
   }
 ]));
 
@@ -72,12 +75,11 @@ console.log('listening on port 3000');
 
 ## Options
 
+ - `test` {Array} array of Strings to match URL
  - `db` redis connection instance
  - `max` {Number} max requests within `duration` [2500]
  - `duration` {Number} of limit in milliseconds [3600000]
  - `id` {Function} id to compare requests [ip]
- - `match` {Array} array of Strings to match URL [match all routes]
- - `matchAfter` {Boolean} if path matches the begining of the URL, match everything after [false]
  - `skip` {Boolean} if path matches, and skip === true, don't ratelimit [false]
 
 ## Responses

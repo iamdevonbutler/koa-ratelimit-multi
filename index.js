@@ -4,11 +4,11 @@
  * Module dependencies.
  */
 
-var debug = require('debug')('koa-ratelimit');
-var Limiter = require('ratelimiter');
-var ms = require('ms');
-var thenify = require('thenify');
-var _ = require('lodash');
+const debug = require('debug')('koa-ratelimit-multi');
+const Limiter = require('ratelimiter');
+const ms = require('ms');
+const thenify = require('thenify');
+const wildcard = require('wildcard');
 
 /**
  * Expose `ratelimit()`.
@@ -37,19 +37,15 @@ function ratelimit(opts) {
   opts = opts || [];
 
   return function *(next){
-    var opt;
-    opt = getCurrentOpt(opts, this.request.url);
-
-    opt.id = opt.id ? opt.id(this) : this.ip;
-    if (!opt.id || opt.skip) return yield* next;
-
-    var limiter  = new Limiter(opt);
+    var opt = getCurrentOpt(opts, this.request.url);
+    if (!opt || opt.skip) return yield* next;
+    let id = opt.id ? opt.id(this) : this.ip;
+    var limiter  = new Limiter(Object.assign({}, opt, {id: id}));
 
     // initialize limiter
     limiter.get = thenify(limiter.get);
     // check limit
     var limit = yield limiter.get();
-
     // check if current call is legit
     var remaining = limit.remaining > 0 ? limit.remaining - 1 : 0;
 
@@ -58,7 +54,7 @@ function ratelimit(opts) {
     this.set('X-RateLimit-Remaining', remaining);
     this.set('X-RateLimit-Reset', limit.reset);
 
-    debug('remaining %s/%s %s', remaining, limit.total, opt.id);
+    debug('remaining %s/%s %s', remaining, limit.total, id);
     if (limit.remaining) return yield* next;
 
     var delta = (limit.reset * 1000) - Date.now() | 0;
@@ -70,28 +66,23 @@ function ratelimit(opts) {
 }
 
 function getCurrentOpt(opts, currentUrl) {
-  var currentOpt, optMatch, len = 0;
-  opts.forEach(function(opt) {
-    // Normalize input.
-    opt.match = opt.match || [];
-    // If `match` is empty -> match all routes.
-    if (!opt.match.length && !currentOpt) {
-      currentOpt = opt;
-    }
-    else {
-      opt.match.forEach(function(path) {
-        // If path === `/api/login` & matchAfter === true -> will match `/api/login/*``
-        if (!optMatch && opt.matchAfter && ~currentUrl.indexOf(path) && path.length > len) {
-          currentOpt =  opt;
-          optMatch = true;
-          len = path.length;
+  var catchAll;
+  // Itterate over each option.
+  for (let i in opts) {
+    let opt = opts[i];
+    // Test each route against the current url.
+    for (let ii in opt.test) {
+      let test = opt.test[ii];
+      // Save this badboy until the end.
+      if (test === '*') {
+        catchAll = opt;
+      }
+      else {
+        if (wildcard(test, currentUrl)) {
+          return opt;
         }
-        if (!optMatch && !opt.matchAfter && currentUrl === path) {
-          currentOpt = opt;
-          optMatch = true;
-        }
-      });
+      }
     }
-  });
-  return _.clone(currentOpt) || {};
+  }
+  return catchAll ? catchAll : null;
 };
