@@ -7,7 +7,7 @@ var ratelimit = require('..');
 
 var db = redis.createClient();
 
-describe('ratelimit middleware', function() {
+describe('koa-ratelimit-multi', function() {
   var rateLimitDuration = 1000;
   var goodBody = "Num times hit: ";
 
@@ -15,24 +15,19 @@ describe('ratelimit middleware', function() {
     db.keys('limit:*', function(err, rows) {
       rows.forEach(db.del, db);
     });
-
     done();
   });
-
-
 
   describe('multiple values', function() {
     var guard;
     var app;
 
     beforeEach(function(done) {
-      app = koa();
-
-      app.use(ratelimit([
+      app = new koa();
+      app.use(ratelimit(db, [
         {
           test: ['*'],
           duration: rateLimitDuration,
-          db: db,
           max: 1000,
           id: function(ctx) {
             return 'api'+ctx.ip;
@@ -41,19 +36,16 @@ describe('ratelimit middleware', function() {
         {
           test: ['/users', '/user'],
           duration: rateLimitDuration,
-          db: db,
           max: 10
         },
         {
           test: ['/wildcard/*'],
           duration: rateLimitDuration,
-          db: db,
           max: 10,
         },
         {
           test: ['/skip/*'],
           duration: rateLimitDuration,
-          db: db,
           max: 10,
           skip: true
         }
@@ -104,18 +96,16 @@ describe('ratelimit middleware', function() {
     };
 
     beforeEach(function(done) {
-      app = koa();
-
-      app.use(ratelimit([{
+      app = new koa();
+      app.use(ratelimit(db ,[{
         test: ['*'],
         duration: rateLimitDuration,
-        db: db,
         max: 1
       }]));
 
-      app.use(function* (next) {
+      app.use(function(ctx, next) {
         guard++;
-        this.body = goodBody + guard;
+        ctx.body = goodBody + guard;
       });
 
       guard = 0;
@@ -149,11 +139,10 @@ describe('ratelimit middleware', function() {
 
   describe('id', function (done) {
     it('should allow specifying a custom `id` function', function (done) {
-      var app = koa();
+      var app = new koa();
 
-      app.use(ratelimit([{
+      app.use(ratelimit(db, [{
         test: ['*'],
-        db: db,
         max: 1,
         id: function (ctx) {
           return ctx.request.header.foo;
@@ -170,10 +159,8 @@ describe('ratelimit middleware', function() {
     });
 
     it('should not limit if `id` returns `false`', function (done) {
-      var app = koa();
-
-      app.use(ratelimit([{
-        db: db,
+      var app = new koa();
+      app.use(ratelimit(db, [{
         id: function (ctx) {
           return false;
         },
@@ -189,18 +176,17 @@ describe('ratelimit middleware', function() {
     });
 
     it('should limit using the `id` value', function (done) {
-      var app = koa();
+      var app = new koa();
 
-      app.use(ratelimit([{
-        db: db,
+      app.use(ratelimit(db, [{
         max: 1,
         id: function (ctx) {
           return ctx.request.header.foo;
         }
       }]));
 
-      app.use(function* (next) {
-        this.body = this.request.header.foo;
+      app.use(function(ctx, next) {
+        ctx.body = ctx.request.header.foo;
       });
 
       request(app.listen())

@@ -11,57 +11,50 @@ const thenify = require('thenify');
 const wildcard = require('wildcard');
 
 /**
- * Expose `ratelimit()`.
- */
-
-module.exports = ratelimit;
-
-/**
- * Initialize ratelimit middleware with the given `opts`:
- *
- * - `duration` {Number} limit duration in milliseconds [1 hour]
- * - `max` {Number}  max requests per `id` [2500]
- * - `db` {connection} database connection
- * - `id` {Function} id to compare requests [ip]
- * - `skip` {Boolean} if path matches, and skip === true, don't ratelimit [false]
- * - `match` {Array} array of Strings to match URL [*]
- * - `matchAfter` {Boolean} if path matches the begining of the URL,
- *    match everything after [false]
- *
- * @param {Array of Object(s)} opts
+ * @param {Object} db
+ * @param {Array of Objects} opts
+ *   `test` {Array} array of Strings to match URL
+ *   `duration` {Number} limit duration in milliseconds [1 hour]
+ *   `max` {Number}  max requests per `id` [2500]
+ *   `id` {Function} id to compare requests [ip]
+ *   `skip` {Boolean} if path matches, and skip === true, don't ratelimit [false]
  * @return {Function}
  * @api public
  */
 
-function ratelimit(opts) {
-  opts = opts || [];
+module.exports = function ratelimit(db, opts = []) {
+  if (!db) {
+    throw 'You must supply a db object to koa-ratelimit-multi. Try redis.createClient().';
+  }
+  return async function (ctx, next){
+    var opt = getCurrentOpt(opts, ctx.request.url);
 
-  return function *(next){
-    var opt = getCurrentOpt(opts, this.request.url);
-    if (!opt || opt.skip) return yield* next;
-    let id = opt.id ? opt.id(this) : this.ip;
-    var limiter  = new Limiter(Object.assign({}, opt, {id: id}));
+    if (!opt || opt.skip) return await next();
 
-    // initialize limiter
+    let id = opt.id ? opt.id.call(null, ctx) : ctx.ip;
+    const obj = Object.assign({}, {db}, opt, {id});
+    var limiter  = new Limiter(obj);
+
+    // Initialize limiter.
     limiter.get = thenify(limiter.get);
-    // check limit
-    var limit = yield limiter.get();
-    // check if current call is legit
+    // Check limit.
+    var limit = await limiter.get();
+    // Check if current call is legit.
     var remaining = limit.remaining > 0 ? limit.remaining - 1 : 0;
 
-    // header fields
-    this.set('X-RateLimit-Limit', limit.total);
-    this.set('X-RateLimit-Remaining', remaining);
-    this.set('X-RateLimit-Reset', limit.reset);
+    // Header fields.
+    ctx.set('X-RateLimit-Limit', limit.total);
+    ctx.set('X-RateLimit-Remaining', remaining);
+    ctx.set('X-RateLimit-Reset', limit.reset);
 
     debug('remaining %s/%s %s', remaining, limit.total, id);
-    if (limit.remaining) return yield* next;
+    if (limit.remaining) return await next();
 
     var delta = (limit.reset * 1000) - Date.now() | 0;
     var after = limit.reset - (Date.now() / 1000) | 0;
-    this.set('Retry-After', after);
-    this.status = 429;
-    this.body = 'Rate limit exceeded, retry in ' + ms(delta, { long: true });
+    ctx.set('Retry-After', after);
+    ctx.status = 429;
+    ctx.body = 'Rate limit exceeded, retry in ' + ms(delta, { long: true });
   }
 }
 

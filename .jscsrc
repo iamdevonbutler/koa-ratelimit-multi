@@ -1,0 +1,4 @@
+{
+  "requireSpacesInsideImportedObjectBraces": false,
+  "requireSemicolons": true,
+}

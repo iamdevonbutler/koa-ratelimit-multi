@@ -1,82 +1,62 @@
+# koa-ratelimit-multi
 
-# koa-ratelimit
+Rate limiter middleware for koa - forked to allow multiple limits on a per path basis.
 
-[![NPM version][npm-image]][npm-url]
-[![build status][travis-image]][travis-url]
-[![node version][node-image]][node-url]
+For use w/ Koa 2.0 and Node JS > 6.7.x.
 
-[npm-image]: https://img.shields.io/npm/v/koa-ratelimit.svg?style=flat-square
-[npm-url]: https://npmjs.org/package/koa-ratelimit
-[travis-image]: https://img.shields.io/travis/koajs/ratelimit.svg?style=flat-square
-[travis-url]: https://travis-ci.org/koajs/ratelimit
-[node-image]: https://img.shields.io/badge/node.js-%3E=_0.11-red.svg?style=flat-square
-[node-url]: http://nodejs.org/download/
-
- Rate limiter middleware for koa - forked to allow multiple limits on a per path basis.
+Version 1.x is compatible w/ Koa 1.
 
 ## Installation
 
-```js
-$ npm install koa-ratelimit-mulit
+```javascript
+$ npm install koa-ratelimit-mulit --save
 ```
 
 ## Example
 
-```js
-var ratelimit = require('koa-ratelimit-multi');
-var redis = require('redis');
-var koa = require('koa');
-var app = koa();
+```javascript
+const ratelimit = require('koa-ratelimit-multi');
+const redis = require('redis');
+const Koa = require('koa');
+const app = new Koa();
 
-// apply rate limit
-
-app.use(ratelimit([
+const db = redis.createClient();
+app.use(ratelimit(db, [
   {
     // Catch all route.
     test: ['*']
-    db: redis.createClient(),
     duration: 60000,
     max: 100,
-    id: function (context) {
-      return 'all'+context.ip;
+    id: function (ctx) {
+      return 'all'+ctx.ip;
     }
   },
   {
     test: ['/users/*'],
-    db: redis.createClient(),
     duration: 1000,
     max: 100,
-    id: function (context) {
-      return 'auth'+context.ip;
+    id: function (ctx) {
+      return 'auth'+ctx.ip;
     }
   },
   {
     // skip == true, wont limit this route
     skip: true
     test: ['/skip/this/route'],
-    db: redis.createClient(),
     duration: 1000,
     max: 100,
-    id: function (context) {
-      return 'auth'+context.ip;
+    id: function (ctx) {
+      return 'auth'+ctx.ip;
     }
   }
 ]));
 
-// response middleware
-
-app.use(function *(){
-  this.body = 'Stuff!';
-});
-
 app.listen(3000);
-console.log('listening on port 3000');
 ```
 
 ## Options
 
  - `test` {Array} array of Strings to match URL
- - `db` redis connection instance
  - `max` {Number} max requests within `duration` [2500]
  - `duration` {Number} of limit in milliseconds [3600000]
  - `id` {Function} id to compare requests [ip]
@@ -84,7 +64,7 @@ console.log('listening on port 3000');
 
 ## Responses
 
-  Example 200 with header fields:
+Example 200 with header fields:
 
 ```
 HTTP/1.1 200 OK
@@ -119,4 +99,4 @@ Rate limit exceeded, retry in 8 seconds
 
 ## License
 
-  MIT
+MIT

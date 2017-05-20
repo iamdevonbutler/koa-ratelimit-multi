@@ -1,8 +1,9 @@
 {
   "name": "koa-ratelimit-multi",
   "description": "Rate limiter middleware for koa",
+  "author": "Jason Pescione <jpescione@gmail.com>",
   "repository": "iamdevonbutler/koa-ratelimit-multi",
-  "version": "1.0.0-beta",
+  "version": "2.0.0-beta",
   "keywords": [
     "koa",
     "middleware",
@@ -16,12 +17,12 @@
   "dependencies": {
     "debug": "^2.1.1",
     "ms": "^0.7.0",
-    "ratelimiter": "^2.0.0",
-    "thenify": "^3.0.0",
-    "wildcard": "^1.1.2"
+    "ratelimiter": "~3.0.3",
+    "thenify": "~3.0.0",
+    "wildcard": "~1.1.2"
   },
   "devDependencies": {
-    "koa": "^0.14.0",
+    "koa": "^2.2.0",
     "mocha": "^2.1.0",
     "redis": "^0.12.1",
     "should": "^4.4.2",
@@ -31,7 +32,7 @@
     "test": "NODE_ENV=test node_modules/mocha/bin/mocha --harmony --reporter spec"
   },
   "engines": {
-    "node": ">= 4.0.0"
+    "node": ">=6.7.0"
   },
   "license": "MIT"
 }
